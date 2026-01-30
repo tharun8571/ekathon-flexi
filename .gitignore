@@ -11,6 +11,7 @@ frontend/node_modules/
 # Builds
 dist/
 build/
+frontend/.next/
 
 # Models
 *.pkl
