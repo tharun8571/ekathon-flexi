@@ -122,9 +122,19 @@ async def continuous_data_stream():
                         update = coordinator.process_vitals(patient_id, buffer)
                         update_dict = update.model_dump(mode='json')
                         update_dict["patient_info"] = patient
-                        # Ensure timestamp is string for JSON serialization
+                        
+                        # Ensure all datetime objects are converted to ISO strings
                         if isinstance(update_dict.get("timestamp"), datetime):
                             update_dict["timestamp"] = update_dict["timestamp"].isoformat()
+                        
+                        # Ensure risk_history timestamps are strings (already done in get_risk_history, but double-check)
+                        if "risk_history" in update_dict and isinstance(update_dict["risk_history"], list):
+                            for item in update_dict["risk_history"]:
+                                if isinstance(item, dict) and "timestamp" in item:
+                                    if isinstance(item["timestamp"], datetime):
+                                        item["timestamp"] = item["timestamp"].isoformat()
+                        
+                        print(f"[STREAM] Broadcasting update for {patient_id}: risk={update_dict.get('risk_score', 0):.3f}")
                         await broadcast_update(update_dict)
             
             await asyncio.sleep(2)  # Update every 2 seconds
