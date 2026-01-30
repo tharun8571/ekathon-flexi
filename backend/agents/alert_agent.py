@@ -64,9 +64,9 @@ class AlertEscalationAgent:
         return False
     
     def _format_message(self, level: AlertLevel, reasoning: ClinicalReasoning) -> str:
-        prefixes = {AlertLevel.INFO: "[INFO]", AlertLevel.WARNING: "[WARNING]",
-                  AlertLevel.CRITICAL: "[CRITICAL]", AlertLevel.EMERGENCY: "[EMERGENCY]"}
-        return f"{prefixes.get(level, '')} {level.value}: {reasoning.primary_concern}"
+        emojis = {AlertLevel.INFO: "ℹ️", AlertLevel.WARNING: "⚠️",
+                  AlertLevel.CRITICAL: "🚨", AlertLevel.EMERGENCY: "🆘"}
+        return f"{emojis.get(level, '')} {level.value}: {reasoning.primary_concern}"
     
     def _record_alert(self, patient_id: str, alert: Alert):
         self.alert_history[patient_id].append({

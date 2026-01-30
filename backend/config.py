@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "YOUR_SUPABASE_ANON_KEY")
     
     # NVIDIA API settings (for Qwen model)
-    NVIDIA_API_KEY: Optional[str] = None # "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"
+    NVIDIA_API_KEY: Optional[str] = "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"
     NVIDIA_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
     NVIDIA_MODEL: str = "qwen/qwen3-next-80b-a3b-thinking"
     
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4o"
     
     # ML Model paths
-    MODEL_DIR: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "eka_care_models")
+    MODEL_DIR: str = r"c:\Users\Tharun\OneDrive\Desktop\fa\eka_care_models"
     PATCHTST_MODEL: str = "patchtst_encoder.pt"
     XGBOOST_CLASSIFIER: str = "xgboost_model.json"
     XGBOOST_REGRESSOR: str = "xgboost_regressor.json"

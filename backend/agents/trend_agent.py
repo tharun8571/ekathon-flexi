@@ -234,7 +234,7 @@ class TrendPredictorAgent:
         """Generate reasoning text"""
         if breaches:
             top = breaches[0]
-            return f"[ALERT] PREDICTIVE ALERT: {top['vital'].replace('_', ' ').title()} trending toward {top['threshold']} threshold in ~{top['estimated_time']}. Intervention recommended."
+            return f"⚠️ PREDICTIVE ALERT: {top['vital'].replace('_', ' ').title()} trending toward {top['threshold']} threshold in ~{top['estimated_time']}. Intervention recommended."
         
         # Look for concerning trends
         concerning = []

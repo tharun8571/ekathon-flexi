@@ -142,14 +142,14 @@ class PatchTSTEncoder:
                 self.model.load_state_dict(state_dict, strict=False)
                 self.model.to(self.device)
                 self.model.eval()
-                print(f"[OK] PatchTST encoder loaded from {model_path}")
+                print(f"✅ PatchTST encoder loaded from {model_path}")
             else:
-                print(f"[WARNING] Model not found at {model_path}, using random initialization")
+                print(f"⚠️ Model not found at {model_path}, using random initialization")
                 self.model = PatchTSTEncoderModel()
                 self.model.to(self.device)
                 self.model.eval()
         except Exception as e:
-            print(f"[WARNING] Error loading PatchTST model: {e}, using random initialization")
+            print(f"⚠️ Error loading PatchTST model: {e}, using random initialization")
             self.model = PatchTSTEncoderModel()
             self.model.to(self.device)
             self.model.eval()

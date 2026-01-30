@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 
 interface VitalData {
     patient_id: string
@@ -32,26 +31,9 @@ interface VitalData {
 }
 
 export default function Dashboard() {
-    const router = useRouter()
     const [patients, setPatients] = useState<Map<string, VitalData>>(new Map())
     const [selectedPatient, setSelectedPatient] = useState<string | null>(null)
-    const [currentDate, setCurrentDate] = useState<string>('')
     const wsRef = useRef<WebSocket | null>(null)
-
-    // Check authentication on mount
-    useEffect(() => {
-        const token = localStorage.getItem('eka_access_token')
-        if (!token) {
-            router.push('/login')
-        }
-    }, [router])
-
-    // Set current date only on client side to avoid hydration mismatch
-    useEffect(() => {
-        const now = new Date()
-        const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'numeric', day: 'numeric' })
-        setCurrentDate(dateStr)
-    }, [])
 
     useEffect(() => {
         let ws: WebSocket | null = null;
@@ -71,7 +53,7 @@ export default function Dashboard() {
                     const data = JSON.parse(event.data);
                     if (data.patient_id) {
                         setPatients(prev => new Map(prev).set(data.patient_id, data));
-                        setSelectedPatient(prev => prev || data.patient_id);
+                        if (!selectedPatient) setSelectedPatient(data.patient_id);
                     }
                 } catch (e) {
                     console.error("Error parsing WS message:", e);
@@ -120,22 +102,8 @@ export default function Dashboard() {
                     <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-bold border border-blue-100">PROD v1.2</span>
                 </div>
                 <div className="flex items-center gap-6 text-sm font-medium text-gray-500">
-                    {currentDate && (
-                        <span className="bg-gray-50 px-3 py-1 rounded-lg border border-gray-100">
-                            <span className="mr-1">🕒</span>
-                            {currentDate}
-                        </span>
-                    )}
-                    <button 
-                        onClick={() => {
-                            localStorage.removeItem('eka_access_token')
-                            localStorage.removeItem('eka_refresh_token')
-                            router.push('/login')
-                        }}
-                        className="hover:text-red-500 transition-colors"
-                    >
-                        Logout 🚪
-                    </button>
+                    <span className="bg-gray-50 px-3 py-1 rounded-lg border border-gray-100">🕒 {new Date().toLocaleDateString()}</span>
+                    <button className="hover:text-red-500 transition-colors">Logout 🚪</button>
                 </div>
             </header>
 
