@@ -60,8 +60,12 @@ export default function Dashboard() {
                 try {
                     const data = JSON.parse(event.data);
                     if (data.patient_id) {
-                        setPatients(prev => new Map(prev).set(data.patient_id, data));
-                        if (!selectedPatient) setSelectedPatient(data.patient_id);
+                        setPatients(prev => {
+                            const newMap = new Map(prev);
+                            newMap.set(data.patient_id, data);
+                            return newMap;
+                        });
+                        setSelectedPatient(prev => prev || data.patient_id);
                     }
                 } catch (e) {
                     console.error("Error parsing WS message:", e);

@@ -4,10 +4,12 @@ Real-time healthcare monitoring with WebSocket support.
 """
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict, List
+from pydantic import BaseModel
+from typing import Dict, List, Optional
 import asyncio
 import json
 from datetime import datetime
+import httpx
 
 from .config import settings
 from .models.patient_buffer import PatientBuffer
@@ -21,20 +23,20 @@ from contextlib import asynccontextmanager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print("🚀 TriSense AI Starting (Lifespan)...")
+    print("[STARTUP] TriSense AI Starting (Lifespan)...")
     try:
         patients = get_generator().get_all_patients()
-        print(f"📊 Demo patients: {len(patients)}")
+        print(f"[INFO] Demo patients: {len(patients)}")
         asyncio.create_task(continuous_data_stream())
     except Exception as e:
-        print(f"❌ Startup Error: {e}")
+        print(f"[ERROR] Startup Error: {e}")
         import traceback
         traceback.print_exc()
     
     yield
     
     # Shutdown
-    print("🛑 Shutting down...")
+    print("[SHUTDOWN] Shutting down...")
     global is_streaming
     is_streaming = False
 
@@ -63,7 +65,7 @@ is_streaming = False
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     active_connections.append(websocket)
-    print(f"📱 Client connected. Total: {len(active_connections)}")
+    print(f"[WS] Client connected. Total: {len(active_connections)}")
     
     try:
         while True:
@@ -74,7 +76,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 await websocket.send_json({"type": "subscribed", "status": "ok"})
     except WebSocketDisconnect:
         active_connections.remove(websocket)
-        print(f"📱 Client disconnected. Total: {len(active_connections)}")
+        print(f"[WS] Client disconnected. Total: {len(active_connections)}")
 
 
 async def broadcast_update(data: dict):
@@ -84,7 +86,7 @@ async def broadcast_update(data: dict):
         try:
             await conn.send_text(message)
         except Exception as e:
-            print(f"⚠️ Broadcast error: {e}")
+            print(f"[WARNING] Broadcast error: {e}")
             pass
 
 
@@ -94,7 +96,7 @@ async def continuous_data_stream():
     generator = get_generator()
     coordinator = get_coordinator()
     
-    print("🔄 Starting continuous data stream...")
+    print("[STREAM] Starting continuous data stream...")
     
     while is_streaming:
         try:
@@ -117,7 +119,7 @@ async def continuous_data_stream():
             
             await asyncio.sleep(2)  # Update every 2 seconds
         except Exception as e:
-            print(f"❌ Error in data stream: {e}")
+            print(f"[ERROR] Error in data stream: {e}")
             import traceback
             traceback.print_exc()
             await asyncio.sleep(2)
@@ -169,6 +171,72 @@ async def post_vitals(reading: VitalReading):
         return update.model_dump()
     
     return {"status": "learning_baseline", "readings": buffer.size()}
+
+
+# Eka API Authentication Models
+class EkaLoginRequest(BaseModel):
+    client_id: str
+    client_secret: str
+    sharing_key: Optional[str] = None
+
+
+class EkaLoginResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    expires_in: int
+    refresh_expires_in: int
+
+
+@app.post("/api/auth/login", response_model=EkaLoginResponse)
+async def eka_login(request: EkaLoginRequest):
+    """
+    Proxy endpoint for Eka API authentication.
+    Forwards login request to Eka API and returns tokens.
+    
+    Demo Mode: Use client_id="demo" and client_secret="demo" for testing without real credentials.
+    """
+    # Demo mode for testing without real Eka credentials
+    if request.client_id == "demo" and request.client_secret == "demo":
+        return EkaLoginResponse(
+            access_token="demo_access_token_" + str(int(datetime.utcnow().timestamp())),
+            refresh_token="demo_refresh_token_" + str(int(datetime.utcnow().timestamp())),
+            expires_in=3600,  # 1 hour
+            refresh_expires_in=86400  # 24 hours
+        )
+    
+    eka_api_url = "https://api.eka.care/connect-auth/v1/account/login"
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                eka_api_url,
+                json={
+                    "client_id": request.client_id,
+                    "client_secret": request.client_secret,
+                    "sharing_key": request.sharing_key
+                },
+                headers={"Content-Type": "application/json"}
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                return EkaLoginResponse(**data)
+            else:
+                try:
+                    error_data = response.json() if response.content else {}
+                    error_msg = error_data.get("error", f"Authentication failed with status {response.status_code}")
+                except:
+                    error_msg = f"Authentication failed with status {response.status_code}"
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=error_msg
+                )
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Eka API request timeout")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Failed to connect to Eka API: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 if __name__ == "__main__":
