@@ -46,45 +46,66 @@ export default function Dashboard() {
     useEffect(() => {
         let ws: WebSocket | null = null;
         let reconnectTimeout: NodeJS.Timeout;
+        let isMounted = true;
 
         const connect = () => {
-            ws = new WebSocket('ws://localhost:8000/ws/vitals');
-            wsRef.current = ws;
+            if (!isMounted) return;
+            
+            try {
+                ws = new WebSocket('ws://localhost:8000/ws/vitals');
+                wsRef.current = ws;
 
-            ws.onopen = () => {
-                console.log('Connected to TriSense AI');
-                ws?.send(JSON.stringify({ type: 'subscribe' }));
-            };
+                ws.onopen = () => {
+                    console.log('[WS] Connected to TriSense AI');
+                    ws?.send(JSON.stringify({ type: 'subscribe' }));
+                };
 
-            ws.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    if (data.patient_id) {
-                        setPatients(prev => {
-                            const newMap = new Map(prev);
-                            newMap.set(data.patient_id, data);
-                            return newMap;
-                        });
-                        setSelectedPatient(prev => prev || data.patient_id);
+                ws.onmessage = (event) => {
+                    if (!isMounted) return;
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('[WS] Received data for patient:', data.patient_id);
+                        if (data.patient_id) {
+                            setPatients(prev => {
+                                const newMap = new Map(prev);
+                                newMap.set(data.patient_id, data);
+                                return newMap;
+                            });
+                            setSelectedPatient(prev => prev || data.patient_id);
+                        }
+                    } catch (e) {
+                        console.error("[WS] Error parsing message:", e, event.data);
                     }
-                } catch (e) {
-                    console.error("Error parsing WS message:", e);
+                };
+
+                ws.onerror = (e) => {
+                    console.error('[WS] WebSocket error:', e);
+                };
+
+                ws.onclose = () => {
+                    if (isMounted) {
+                        console.log('[WS] Disconnected. Reconnecting in 3s...');
+                        reconnectTimeout = setTimeout(connect, 3000);
+                    }
+                };
+            } catch (error) {
+                console.error('[WS] Connection error:', error);
+                if (isMounted) {
+                    reconnectTimeout = setTimeout(connect, 3000);
                 }
-            };
-
-            ws.onerror = (e) => console.error('WebSocket error:', e);
-
-            ws.onclose = () => {
-                console.log('Disconnected. Reconnecting in 3s...');
-                reconnectTimeout = setTimeout(connect, 3000);
-            };
+            }
         };
 
         connect();
 
         return () => {
-            if (ws) ws.close();
-            clearTimeout(reconnectTimeout);
+            isMounted = false;
+            if (ws) {
+                ws.close();
+            }
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+            }
         };
     }, []);
 

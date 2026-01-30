@@ -80,14 +80,21 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 async def broadcast_update(data: dict):
-    # print(f"Broadcasting update for {data.get('patient_id')} to {len(active_connections)} clients")
+    if len(active_connections) > 0:
+        print(f"[BROADCAST] Sending update for {data.get('patient_id')} to {len(active_connections)} clients")
     message = json.dumps(data, default=str)
-    for conn in active_connections:
+    disconnected = []
+    for i, conn in enumerate(active_connections):
         try:
             await conn.send_text(message)
         except Exception as e:
-            print(f"[WARNING] Broadcast error: {e}")
-            pass
+            print(f"[WARNING] Broadcast error to client {i}: {e}")
+            disconnected.append(i)
+    
+    # Remove disconnected clients
+    for i in reversed(disconnected):
+        if i < len(active_connections):
+            active_connections.pop(i)
 
 
 async def continuous_data_stream():
@@ -113,8 +120,11 @@ async def continuous_data_stream():
                     
                     if buffer.size() >= 4:
                         update = coordinator.process_vitals(patient_id, buffer)
-                        update_dict = update.model_dump()
+                        update_dict = update.model_dump(mode='json')
                         update_dict["patient_info"] = patient
+                        # Ensure timestamp is string for JSON serialization
+                        if isinstance(update_dict.get("timestamp"), datetime):
+                            update_dict["timestamp"] = update_dict["timestamp"].isoformat()
                         await broadcast_update(update_dict)
             
             await asyncio.sleep(2)  # Update every 2 seconds
