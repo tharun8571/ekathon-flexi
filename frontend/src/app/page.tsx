@@ -313,7 +313,7 @@ export default function Dashboard() {
 
                                     {/* Score Trend Mini Graph */}
                                     <div className="h-20 w-full bg-gray-50 rounded-lg overflow-hidden relative">
-                                        {currentPatient?.risk_history && currentPatient.risk_history.length > 0 && (
+                                        {currentPatient?.risk_history && currentPatient.risk_history.length > 0 ? (
                                             <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                                                 <defs>
                                                     <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
@@ -321,22 +321,32 @@ export default function Dashboard() {
                                                         <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
                                                     </linearGradient>
                                                 </defs>
-                                                <path
-                                                    d={`${currentPatient.risk_history.slice(-20).map((point, i) =>
-                                                        `${i === 0 ? 'M' : 'L'} ${(i / 19) * 100} ${100 - point.risk_score * 100}`
-                                                    ).join(' ')} L 100 100 L 0 100 Z`}
-                                                    fill="url(#scoreGrad)"
-                                                />
-                                                <path
-                                                    d={currentPatient.risk_history.slice(-20).map((point, i) =>
-                                                        `${i === 0 ? 'M' : 'L'} ${(i / 19) * 100} ${100 - point.risk_score * 100}`
-                                                    ).join(' ')}
-                                                    fill="none"
-                                                    stroke="#3b82f6"
-                                                    strokeWidth="2"
-                                                    strokeLinecap="round"
-                                                />
+                                                {currentPatient.risk_history.length > 1 ? (
+                                                    <>
+                                                        <path
+                                                            d={`${currentPatient.risk_history.slice(-20).map((point, i, arr) =>
+                                                                `${i === 0 ? 'M' : 'L'} ${(i / Math.max(arr.length - 1, 1)) * 100} ${100 - point.risk_score * 100}`
+                                                            ).join(' ')} L 100 100 L 0 100 Z`}
+                                                            fill="url(#scoreGrad)"
+                                                        />
+                                                        <path
+                                                            d={currentPatient.risk_history.slice(-20).map((point, i, arr) =>
+                                                                `${i === 0 ? 'M' : 'L'} ${(i / Math.max(arr.length - 1, 1)) * 100} ${100 - point.risk_score * 100}`
+                                                            ).join(' ')}
+                                                            fill="none"
+                                                            stroke="#3b82f6"
+                                                            strokeWidth="2"
+                                                            strokeLinecap="round"
+                                                        />
+                                                    </>
+                                                ) : (
+                                                    <circle cx="50" cy={100 - currentPatient.risk_history[0].risk_score * 100} r="2" fill="#3b82f6" />
+                                                )}
                                             </svg>
+                                        ) : (
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <span className="text-xs text-gray-400">No history yet</span>
+                                            </div>
                                         )}
                                         <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
                                             <span className="text-xs font-black uppercase tracking-[0.2em] text-blue-900">TEMPORAL RISK TREND</span>
@@ -409,22 +419,30 @@ export default function Dashboard() {
                                                 <span className={`text-2xl font-black tabular-nums ${v.color}`}>{v.value?.toFixed(0) || '--'}</span>
                                                 <span className="text-[9px] font-bold text-gray-300">{v.unit}</span>
                                             </div>
-                                            {v.trend && (
+                                            {v.trend && Array.isArray(v.trend) && v.trend.length > 0 ? (
                                                 <div className="h-8 mt-2 opacity-50">
                                                     <svg className="w-full h-full" viewBox="0 0 100 50" preserveAspectRatio="none">
-                                                        <path
-                                                            d={v.trend.slice(-15).map((val, i) =>
-                                                                `${i === 0 ? 'M' : 'L'} ${(i / 14) * 100} ${50 - (val / 200) * 50}`
-                                                            ).join(' ')}
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            className={v.color}
-                                                            strokeWidth="3"
-                                                            strokeLinecap="round"
-                                                        />
+                                                        {v.trend.length > 1 ? (
+                                                            <path
+                                                                d={v.trend.slice(-15).map((val, i, arr) => {
+                                                                    const maxVal = Math.max(...arr, 1);
+                                                                    const minVal = Math.min(...arr, 0);
+                                                                    const range = maxVal - minVal || 1;
+                                                                    const normalized = (val - minVal) / range;
+                                                                    return `${i === 0 ? 'M' : 'L'} ${(i / Math.max(arr.length - 1, 1)) * 100} ${50 - normalized * 50}`;
+                                                                }).join(' ')}
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                className={v.color}
+                                                                strokeWidth="3"
+                                                                strokeLinecap="round"
+                                                            />
+                                                        ) : (
+                                                            <circle cx="50" cy="25" r="2" fill="currentColor" className={v.color} />
+                                                        )}
                                                     </svg>
                                                 </div>
-                                            )}
+                                            ) : null}
                                         </div>
                                     ))}
                                 </div>
